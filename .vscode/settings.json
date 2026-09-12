@@ -1,0 +1,7 @@
+{
+    "[php]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "open-southeners.laravel-pint"
+    },
+    "prettier.enable": false
+}
