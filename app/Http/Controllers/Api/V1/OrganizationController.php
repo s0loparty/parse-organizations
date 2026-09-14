@@ -45,7 +45,7 @@ class OrganizationController extends Controller
 
     public function show(Organization $organization)
     {
-        //
+        return new OrganizationResource($organization);
     }
 
     public function reviews(Request $request, Organization $organization)
