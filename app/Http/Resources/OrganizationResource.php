@@ -14,6 +14,15 @@ class OrganizationResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'source' => $this->source,
+            'external_id' => $this->external_id,
+            'name' => $this->name,
+            'rating' => $this->reviews_count,
+            'ratings_count' => $this->reviews_count,
+            'reviews_count' => $this->reviews_count,
+            'reviews' => ReviewResource::collection($this->whenLoaded('reviews')),
+        ];
     }
 }

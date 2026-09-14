@@ -39,7 +39,9 @@ final class SyncOrganization implements ShouldQueue
             ->whereBelongsTo($organization)
             ->findOrFail($this->syncAttemptId);
 
-        if ($syncAttempt->status === OrganizationSyncStatus::COMPLETED) {
+        if ($syncAttempt->status === OrganizationSyncStatus::COMPLETED
+            || ($syncAttempt->status === OrganizationSyncStatus::PROCESSING
+                && $syncAttempt->reviews_total !== null)) {
             return;
         }
 
@@ -75,10 +77,25 @@ final class SyncOrganization implements ShouldQueue
                 'status' => OrganizationStatus::VALID,
             ]);
 
+            $hasReviews = $data->reviewsCount > 0;
+
             $syncAttempt->update([
-                'status' => OrganizationSyncStatus::COMPLETED,
+                'status' => $hasReviews
+                    ? OrganizationSyncStatus::PROCESSING
+                    : OrganizationSyncStatus::COMPLETED,
                 'error' => null,
+                'reviews_processed' => 0,
+                'reviews_total' => $data->reviewsCount,
+                'next_reviews_page' => $hasReviews ? 1 : null,
             ]);
+
+            if ($hasReviews) {
+                SyncOrganizationReviewsPage::dispatch(
+                    organizationId: $organization->id,
+                    syncAttemptId: $syncAttempt->id,
+                    page: 1,
+                )->afterCommit();
+            }
         });
     }
 

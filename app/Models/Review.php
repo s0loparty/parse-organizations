@@ -2,33 +2,33 @@
 
 namespace App\Models;
 
-use App\Enums\OrganizationSyncStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'organization_id',
-    'status',
-    'error',
-    'reviews_processed',
-    'reviews_total',
-    'next_reviews_page',
+    'external_id',
+    'author_name',
+    'author_avatar_url',
+    'rating',
+    'text',
+    'likes_count',
+    'dislikes_count',
+    'source_updated_at',
 ])]
-class SyncAttempt extends Model
+class Review extends Model
 {
     /**
-     * The attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'status' => OrganizationSyncStatus::class,
-            'reviews_processed' => 'integer',
-            'reviews_total' => 'integer',
-            'next_reviews_page' => 'integer',
+            'rating' => 'integer',
+            'likes_count' => 'integer',
+            'dislikes_count' => 'integer',
+            'source_updated_at' => 'immutable_datetime',
         ];
     }
 

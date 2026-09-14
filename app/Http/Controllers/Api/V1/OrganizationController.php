@@ -10,7 +10,6 @@ use App\Services\Organizations\Exceptions\OrganizationSyncThrottledException;
 use App\Services\Organizations\Resolvers\YandexOrganizationUrlResolver;
 use App\Services\Organizations\StartOrganizationSync;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class OrganizationController extends Controller
 {
@@ -45,11 +44,15 @@ class OrganizationController extends Controller
 
     public function show(Organization $organization)
     {
+        $organization->load('reviews');
+
         return new OrganizationResource($organization);
     }
 
-    public function reviews(Request $request, Organization $organization)
+    public function reviews(Organization $organization)
     {
-        //
+        $reviews = $organization->reviews()->paginate(50);
+
+        return $reviews;
     }
 }
