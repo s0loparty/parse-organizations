@@ -65,6 +65,7 @@ defineEmits(['update:url', 'close', 'submit']);
               autocomplete="url"
               :aria-invalid="isError"
               required
+              class="h-10"
               @update:model-value="$emit('update:url', $event)"
             />
             <p v-if="isError" role="alert" class="text-sm text-destructive">

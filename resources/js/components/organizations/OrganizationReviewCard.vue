@@ -39,7 +39,7 @@ function hideBrokenImage(event) {
 </script>
 
 <template>
-  <article class="rounded-2xl bg-white p-5 shadow-sm">
+  <article class="rounded-2xl bg-white p-5 wrap-anywhere shadow-sm">
     <div class="flex items-start gap-4">
       <div
         class="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-medium text-muted-foreground"
