@@ -1,58 +1,197 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Интеграция с Яндекс Картами
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Тестовое приложение на Laravel и Vue 3. Пользователь может войти в систему, добавить ссылку на организацию в Яндекс Картах и посмотреть сохранённые данные организации и её отзывы.
 
-## About Laravel
+Данные Яндекса загружаются в фоне через очередь. Интерфейс не обращается к Яндексу напрямую: он работает только с API приложения и показывает данные, сохранённые в базе.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Стек
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Laravel 13;
+- PHP 8.3+;
+- Laravel Sanctum;
+- PostgreSQL;
+- Redis;
+- Vue 3 и Composition API;
+- Vue Router;
+- TanStack Query;
+- Axios;
+- Tailwind CSS 4;
+- shadcn-vue;
+- Laravel Sail.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Локальный запуск
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Для запуска нужны Docker и WSL2. Если папки `vendor` ещё нет, сначала нужно установить Composer-зависимости:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -v "$(pwd):/var/www/html" \
+    -w /var/www/html \
+    laravelsail/php85-composer:latest \
+    composer install --ignore-platform-reqs
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Далее:
 
-## Contributing
+```bash
+cp .env.example .env
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Для PostgreSQL из `compose.yaml` в `.env` нужно указать:
 
-## Code of Conduct
+```dotenv
+APP_URL=http://localhost:8000
+APP_PORT=8000
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+DB_CONNECTION=pgsql
+DB_HOST=pgsql
+DB_PORT=5432
+DB_DATABASE=laravel
+DB_USERNAME=sail
+DB_PASSWORD=secret
 
-## Security Vulnerabilities
+QUEUE_CONNECTION=database
+CACHE_STORE=database
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+После настройки окружения:
 
-## License
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate --seed
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+В отдельном терминале нужно запустить обработчик очереди:
+
+```bash
+./vendor/bin/sail artisan queue:work
+```
+
+Приложение будет доступно по адресу `http://localhost:8000`.
+
+Данные тестового пользователя:
+
+```text
+Email: test@example.com
+Пароль: password
+```
+
+## Как работает приложение
+
+После входа Laravel Sanctum выдаёт Bearer-токен. Он сохраняется на клиенте и добавляется Axios к последующим API-запросам. Регистрации в приложении нет.
+
+При добавлении организации выполняются следующие шаги:
+
+1. Ссылка проходит валидацию.
+2. Из полной ссылки извлекается `oid` организации. Для короткой ссылки приложение сначала получает адрес редиректа, а затем извлекает `oid` из него.
+3. Организация создаётся в базе или находится существующая запись с тем же источником и внешним идентификатором.
+4. Создаётся попытка синхронизации и запускается фоновая Job.
+5. Первая Job загружает название, средний рейтинг, количество оценок и количество отзывов.
+6. Отзывы загружаются отдельными Job по 50 штук. После обработки страницы запускается следующая, пока Яндекс не сообщит, что страниц больше нет.
+7. Отзывы сохраняются через `upsert`, поэтому повторная синхронизация обновляет существующие записи и не создаёт дубли.
+
+Пока организация синхронизируется, frontend раз в пять секунд обновляет данные. Отзывы в интерфейсе читаются из локальной базы с пагинацией по 50 записей и переключаются без перезагрузки страницы.
+
+## Подход к парсингу
+
+Я выбрал разбор внутренних запросов Яндекс Карт, а не headless-браузер.
+
+Основные данные организации находятся в JSON-состоянии внутри страницы карточки. Для отзывов используется внутренний запрос `fetchReviews`, который вызывает сама страница Яндекс Карт при прокрутке. Клиент получает CSRF-токен, формирует параметры запроса и последовательно загружает все доступные страницы.
+
+Плюсы этого подхода:
+
+- меньше потребление памяти и процессорного времени;
+- быстрее работает на большом количестве организаций;
+- не нужно запускать Chromium и эмулировать прокрутку;
+- проще выполнять запросы через обычную очередь Laravel.
+
+Минусы:
+
+- внутренний API не документирован;
+- Яндекс может изменить параметры запроса, подпись или формат ответа;
+- защита от ботов может начать требовать дополнительные cookies, токены или выполнение JavaScript.
+
+Headless-браузер был бы ближе к действиям реального пользователя и мог бы выполнять JavaScript страницы. При этом он заметно тяжелее, медленнее и сложнее при параллельной обработке десятков организаций. Я бы рассматривал его как запасной вариант, если внутренние запросы перестанут работать без браузерного окружения.
+
+## Устойчивость к изменениям Яндекса
+
+Парсер не считает пустой или неожиданный ответ успешным. Он проверяет наличие нужных разделов JSON, идентификатор организации, типы счётчиков, номер страницы, общее количество страниц и структуру каждого отзыва.
+
+Если обязательных данных нет или их формат изменился, выбрасывается `UnexpectedYandexMapsResponseException`. Job после исчерпания повторных попыток переводит попытку синхронизации в статус `failed` и сохраняет текст ошибки. Для отсутствующей организации используется отдельная ошибка, а сама организация получает статус `invalid`.
+
+Таким образом, изменение формата Яндекса не приводит к тихому сохранению пустых или некорректных данных. В текущей реализации ошибка видна в базе и логах. Для production я бы дополнительно добавил мониторинг числа неудачных синхронизаций и уведомления.
+
+## Очередь и масштабирование
+
+Синхронизация не выполняется внутри HTTP-запроса. HTTP-запрос только сохраняет организацию, создаёт `sync_attempt` и отправляет Job в очередь.
+
+Основные данные и страницы отзывов обрабатываются раздельно. Каждая Job имеет таймаут 30 секунд, до трёх попыток и backoff 10 и 60 секунд. Между страницами отзывов есть пауза две секунды. Прогресс хранится в `sync_attempts`: общее и обработанное количество отзывов, следующая страница, статус и ошибка.
+
+Сейчас интерфейс показывает общий статус обновления, но не выводит точный процент прогресса.
+
+Для сети из 50 филиалов можно запустить несколько queue worker. При этом число параллельных запросов к одному источнику нужно ограничивать отдельно, чтобы увеличение количества worker не привело к блокировке со стороны Яндекса.
+
+## Защита от блокировок
+
+В текущей реализации есть:
+
+- пауза между страницами отзывов;
+- таймауты подключения и запроса;
+- повторные попытки с backoff;
+- браузерный User-Agent и необходимые заголовки;
+- общий пятиминутный запрет повторной синхронизации одной организации независимо от пользователя;
+- запрет запуска второй параллельной синхронизации той же организации.
+
+Для регулярного production-парсинга этого недостаточно. Я бы добавил отдельный rate limiter на весь источник, случайные паузы, ограничение конкурентности worker, ротацию прокси и User-Agent. Ответы с CAPTCHA, `403` и `429` нужно распознавать отдельно, увеличивать задержку и временно останавливать запросы через проблемный IP.
+
+## Идемпотентность и история
+
+Организация уникальна по паре `source + external_id`. Отзыв уникален по паре `organization_id + external_id`. Повторный импорт обновляет название организации, рейтинг, счётчики и существующие отзывы.
+
+Таблица `sync_attempts` хранит историю запусков, их статус, ошибку и прогресс. Полноценных снимков данных пока нет. Чтобы видеть изменения в формате «было → стало», я бы добавил таблицу снимков организации с рейтингом, количеством оценок, количеством отзывов и временем получения. Для изменений самих отзывов можно хранить версии только при изменении значимых полей, чтобы не копировать все данные при каждой синхронизации.
+
+## API
+
+Все маршруты организаций требуют Bearer-токен Sanctum.
+
+```text
+POST /api/login
+POST /api/logout
+GET  /api/user
+
+GET  /api/v1/organizations
+POST /api/v1/organizations
+GET  /api/v1/organizations/{organization}
+GET  /api/v1/organizations/{organization}/reviews?page=1
+```
+
+## Структура кода
+
+```text
+app/Services/Organizations    общая логика организаций, контракты и DTO
+app/Services/YandexMaps       HTTP-клиент и разбор ответов Яндекса
+app/Jobs/Organizations        фоновые задачи синхронизации
+app/Http/Controllers/Api/V1   API-контроллеры
+resources/js/composables      состояние страниц и TanStack Query
+resources/js/components       компоненты интерфейса
+resources/js/views            страницы SPA
+```
+
+`OrganizationDataProvider` отделяет синхронизацию от конкретного внешнего сервиса. Сейчас реализован только `YandexMapsClient`. Для добавления 2ГИС понадобится новый provider и его выбор в `OrganizationDataProviderResolver`, а очередь и сохранение данных можно оставить без изменений.
+
+## Ограничения текущей версии
+
+- поддерживается только Яндекс;
+- длинная ссылка должна содержать `oid`, также поддерживаются короткие ссылки Яндекса;
+- точный прогресс синхронизации пока не выведен в интерфейсе;
+- нет ротации прокси и автоматической обработки CAPTCHA;
+- история попыток есть, но снимки изменений организации не реализованы;
+- внутренний API Яндекса может измениться без предупреждения.
+
+## Что бы я доделал
+
+Если бы времени было больше, я бы в первую очередь добавил автоматические тесты парсера на сохранённых ответах Яндекса, мониторинг ошибок синхронизации и глобальный лимит запросов к источнику. После этого — снимки изменений, отображение точного прогресса, очистку устаревших отзывов и поддержку 2ГИС через существующий контракт.
