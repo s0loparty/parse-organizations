@@ -21,8 +21,8 @@ const router = useRouter();
 const queryClient = useQueryClient();
 
 const credentials = reactive({
-  email: 'test@example.com',
-  password: 'password',
+  email: '',
+  password: '',
 });
 
 const { error, isError, isPending, mutate } = useMutation({
