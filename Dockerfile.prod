@@ -1,0 +1,94 @@
+# syntax=docker/dockerfile:1
+
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --optimize-autoloader \
+    --prefer-dist
+
+COPY . .
+
+RUN composer dump-autoload \
+    --classmap-authoritative \
+    --no-dev \
+    --no-interaction
+
+FROM node:22-alpine AS frontend
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN npm ci
+
+COPY --from=vendor /app ./
+
+RUN npm run build
+
+FROM php:8.3-fpm-alpine AS runtime
+
+WORKDIR /var/www/html
+
+RUN apk add --no-cache \
+        curl \
+        icu-libs \
+        libpq \
+        libxml2 \
+        nginx \
+        oniguruma \
+        supervisor \
+        su-exec \
+    && apk add --no-cache --virtual .build-dependencies \
+        $PHPIZE_DEPS \
+        curl-dev \
+        icu-dev \
+        libxml2-dev \
+        oniguruma-dev \
+        postgresql-dev \
+    && docker-php-ext-install -j"$(nproc)" \
+        bcmath \
+        curl \
+        dom \
+        intl \
+        mbstring \
+        opcache \
+        pcntl \
+        pdo_pgsql \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-dependencies \
+    && mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && rm -rf /tmp/pear
+
+COPY --from=vendor --chown=www-data:www-data /app ./
+COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
+
+COPY docker/production/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/production/php.ini /usr/local/etc/php/conf.d/production.ini
+COPY docker/production/supervisord.conf /etc/supervisor.d/app.ini
+COPY docker/production/entrypoint.sh /usr/local/bin/production-entrypoint
+
+RUN chmod +x /usr/local/bin/production-entrypoint \
+    && mkdir -p \
+        /run/nginx \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+EXPOSE 8080
+
+ENTRYPOINT ["production-entrypoint"]
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl --fail --silent http://127.0.0.1:8080/up > /dev/null || exit 1
