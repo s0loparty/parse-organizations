@@ -19,9 +19,10 @@ class OrganizationResource extends JsonResource
             'source' => $this->source,
             'external_id' => $this->external_id,
             'name' => $this->name,
-            'rating' => $this->reviews_count,
-            'ratings_count' => $this->reviews_count,
+            'rating' => $this->rating,
+            'ratings_count' => $this->ratings_count,
             'reviews_count' => $this->reviews_count,
+            'status' => $this->status,
             'reviews' => ReviewResource::collection($this->whenLoaded('reviews')),
         ];
     }

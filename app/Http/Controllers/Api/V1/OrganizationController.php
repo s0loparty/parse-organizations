@@ -5,14 +5,23 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\StoreOrganizationRequest;
 use App\Http\Resources\OrganizationResource;
+use App\Http\Resources\ReviewResource;
 use App\Models\Organization;
 use App\Services\Organizations\Exceptions\OrganizationSyncThrottledException;
 use App\Services\Organizations\Resolvers\YandexOrganizationUrlResolver;
 use App\Services\Organizations\StartOrganizationSync;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class OrganizationController extends Controller
 {
+    public function index(): AnonymousResourceCollection
+    {
+        $organizations = Organization::latest()->get();
+
+        return OrganizationResource::collection($organizations);
+    }
+
     public function store(
         StoreOrganizationRequest $request,
         YandexOrganizationUrlResolver $resolver,
@@ -42,17 +51,17 @@ class OrganizationController extends Controller
         return new OrganizationResource($organization);
     }
 
-    public function show(Organization $organization)
+    public function show(Organization $organization): OrganizationResource
     {
-        $organization->load('reviews');
-
         return new OrganizationResource($organization);
     }
 
-    public function reviews(Organization $organization)
+    public function reviews(Organization $organization): AnonymousResourceCollection
     {
-        $reviews = $organization->reviews()->paginate(50);
+        $reviews = $organization->reviews()
+            ->latest('source_updated_at')
+            ->paginate(50);
 
-        return $reviews;
+        return ReviewResource::collection($reviews);
     }
 }
