@@ -6,8 +6,6 @@ x-application: &application
   env_file:
     - .env
   restart: unless-stopped
-  networks:
-    - application
 
 services:
   app:
@@ -26,6 +24,8 @@ services:
 
   queue:
     <<: *application
+    healthcheck:
+      disable: true
     command:
       - php
       - artisan
@@ -42,6 +42,8 @@ services:
 
   migrate:
     <<: *application
+    healthcheck:
+      disable: true
     command: ["php", "artisan", "migrate", "--force"]
     restart: "no"
     depends_on:
@@ -59,8 +61,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql
-    networks:
-      - application
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -q -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -80,18 +80,12 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
-    networks:
-      - application
     healthcheck:
       test:
         ["CMD-SHELL", "redis-cli --no-auth-warning -a $$REDIS_PASSWORD ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-networks:
-  application:
-    driver: bridge
 
 volumes:
   postgres-data:
