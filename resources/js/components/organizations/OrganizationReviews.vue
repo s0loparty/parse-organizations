@@ -86,7 +86,8 @@ function formatNumber(value) {
       <div class="grid gap-1">
         <h3 class="font-semibold">Отзывов пока нет</h3>
         <p class="text-sm text-muted-foreground">
-          Они появятся здесь после синхронизации организации.
+          Организация не имеет отзывов, или синхронизация отзывов ещё не
+          завершилась.
         </p>
       </div>
     </div>

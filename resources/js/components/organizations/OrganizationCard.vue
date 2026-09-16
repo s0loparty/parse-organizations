@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Badge } from '../ui/badge';
 
 defineProps({
   organization: { type: Object, required: true },
@@ -60,40 +61,28 @@ function formatRating(value) {
     }"
   >
     <Card
-      class="shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+      class="h-full shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
       <CardHeader class="block min-w-0">
-        <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <CardTitle class="truncate">
+            <CardTitle class="sm:truncate">
               {{ organization.name || 'Название загружается…' }}
             </CardTitle>
-            <CardDescription class="mt-1 flex min-w-0 items-center gap-2">
-              <span
-                class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700"
-              >
-                {{
-                  organization.source === 'yandex'
-                    ? 'Яндекс'
-                    : organization.source
-                }}
-              </span>
-              <span class="truncate font-mono text-xs">
-                {{ organization.external_id }}
-              </span>
-            </CardDescription>
           </div>
 
-          <span
-            class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium"
-            :class="getStatusDetails(organization.status).badgeClass"
-          >
-            <span
-              class="size-1.5 rounded-full"
-              :class="getStatusDetails(organization.status).dotClass"
-            ></span>
-            {{ getStatusDetails(organization.status).label }}
-          </span>
+          <div class="flex gap-2">
+            <Badge :class="getStatusDetails(organization.status).badgeClass">
+              {{ getStatusDetails(organization.status).label }}
+            </Badge>
+            <Badge class="bg-red-50 text-red-700">
+              {{
+                organization.source === 'yandex'
+                  ? 'Яндекс'
+                  : organization.source
+              }}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
 

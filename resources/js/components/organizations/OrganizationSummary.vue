@@ -1,5 +1,6 @@
 <script setup>
 import { LoaderCircle } from '@lucide/vue';
+import { Badge } from '../ui/badge';
 
 defineProps({
   organization: { type: Object, required: true },
@@ -48,14 +49,29 @@ function formatRating(value) {
 <template>
   <section class="rounded-3xl bg-white p-6 shadow-sm sm:p-8">
     <div class="flex flex-wrap items-start justify-between gap-4">
-      <div class="min-w-0">
-        <div class="flex flex-wrap items-center gap-3">
+      <div class="w-full min-w-0">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <h1
             class="text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
           >
             {{ organization.name || 'Название загружается…' }}
           </h1>
-          <span
+
+          <div class="flex gap-2">
+            <Badge :class="getStatusDetails(organization.status).badgeClass">
+              {{ getStatusDetails(organization.status).label }}
+            </Badge>
+            <Badge class="bg-red-50 text-red-700">
+              {{
+                organization.source === 'yandex'
+                  ? 'Яндекс'
+                  : organization.source
+              }}
+
+              <LoaderCircle v-if="isFetching" class="size-3.5 animate-spin" />
+            </Badge>
+          </div>
+          <!-- <span
             class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
             :class="getStatusDetails(organization.status).badgeClass"
           >
@@ -64,9 +80,9 @@ function formatRating(value) {
               :class="getStatusDetails(organization.status).dotClass"
             ></span>
             {{ getStatusDetails(organization.status).label }}
-          </span>
+          </span> -->
 
-          <div
+          <!-- <div
             class="flex flex-wrap items-center gap-3 text-sm text-muted-foreground"
           >
             <span
@@ -82,7 +98,7 @@ function formatRating(value) {
               <LoaderCircle class="size-3.5 animate-spin" />
               Обновляем данные
             </span>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
