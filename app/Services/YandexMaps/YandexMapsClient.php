@@ -65,6 +65,14 @@ final class YandexMapsClient implements OrganizationDataProvider
             return null;
         }
 
+        if (preg_match(
+            '~^/maps/org/[^/]+/(\d+)(?:/.*)?$~',
+            $uri->path(),
+            $matches,
+        )) {
+            return $matches[1];
+        }
+
         $poiUri = $uri->query()->get('poi.uri');
 
         if (! is_string($poiUri)) {
