@@ -62,7 +62,8 @@ RUN apk add --no-cache \
         opcache \
         pcntl \
         pdo_pgsql \
-    && pecl install redis \
+    && pecl channel-update pecl.php.net \
+    && pecl install redis-6.3.0 \
     && docker-php-ext-enable redis \
     && apk del .build-dependencies \
     && mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
